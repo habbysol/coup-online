@@ -35,6 +35,10 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         //Creates the room with this socket as the first player
         rooms[roomId] = [socket.id];
 
+        const playersInRoom = rooms[roomId];
+        io!.to(roomId).emit("room-players", { players: playersInRoom });
+        console.log("📤 Emitting room-players:", playersInRoom);
+
         socket.emit("room-created", { roomId });
       });
 
@@ -47,15 +51,25 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
           return;
         }
 
-        // Join room and update server state
+        // ✅ Check if the player is already in the room
+        if (rooms[roomId].includes(socket.id)) {
+          socket.emit("error", { message: "You're already in this room." });
+          return;
+        }
+
+        // Join the room and update state
         socket.join(roomId);
         rooms[roomId].push(socket.id);
 
-        // Notify others in the room (not the one who joined)
+        // 1. Confirm to the player who just joined
+        socket.emit("joined-room", { roomId });
+
+        // 2. Notify others
         socket.to(roomId).emit("player-joined", { playerId: socket.id });
 
-        // Optionally confirm join to the player
-        socket.emit("joined-room", { roomId });
+        // 3. Broadcast player list
+        const playersInRoom = rooms[roomId];
+        io!.to(roomId).emit("room-players", { players: playersInRoom });
       });
 
       console.log("⚡🔌 Client connected:", socket.id);

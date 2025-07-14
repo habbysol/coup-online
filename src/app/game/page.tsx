@@ -9,6 +9,8 @@ export default function GamePage() {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [roomCodeInput, setRoomCodeInput] = useState("");
   const [joinMessage, setJoinMessage] = useState<string | null>(null);
+  const [players, setPlayers] = useState<string[]>([]);
+  const [roomJoined, setRoomJoined] = useState(false);
 
   useEffect(() => {
     if (!socket || !socket.connected) return;
@@ -18,7 +20,7 @@ export default function GamePage() {
     if (socket.id) {
       setSocketId(socket.id);
 
-      socket.emit("create-room");
+      //socket.emit("create-room");
 
       //Uncomment to expose socket globally for debugging (in DevTools console)
       //socket.emit("join-room", { roomId: "grab from DevTools" });
@@ -35,6 +37,8 @@ export default function GamePage() {
 
     socket.on("joined-room", ({ roomId }) => {
       console.log("✅ Joined room:", roomId);
+      setRoomId(roomId);
+      setRoomJoined(true);
       setJoinMessage(`Successfully joined room: ${roomId}`);
     });
 
@@ -43,15 +47,28 @@ export default function GamePage() {
       setJoinMessage(`Error: ${message}`);
     });
 
-    socket.on("room-created", (data) => {
-      console.log("📦 Room created with ID:", data.roomId);
-      setRoomId(data.roomId); // ✅ update UI with the room code
+    socket.on("room-players", ({ players }) => {
+      console.log("🧑‍🤝‍🧑 Players in room:", players);
+      setPlayers(players);
+    });
+
+    socket.on("room-created", ({ roomId }) => {
+      console.log("📦 Room created with ID:", roomId);
+      setRoomId(roomId);
+      setRoomJoined(true); // ✅ trigger UI display of room ID and player list
     });
 
     return () => {
       socket.off("player-joined");
+      socket.off("room-players");
+      socket.off("room-created");
+      socket.off("joined-room");
+      socket.off("error");
     };
   }, [socket]);
+
+  console.log("🧪 roomId:", roomId);
+  console.log("🧪 players:", players);
 
   return (
     //Create Room Button and Room Code Display
@@ -64,7 +81,7 @@ export default function GamePage() {
       >
         Create Room
       </button>
-      {roomId && (
+      {roomJoined && roomId && (
         <p className="mt-2 text-lg text-yellow-300">✅ Room Code: {roomId}</p>
       )}
 
@@ -77,7 +94,7 @@ export default function GamePage() {
           onChange={(e) => {
             const value = e.target.value
               .toUpperCase()
-              .replace(/[^A-Z]/g, "")
+              .replace(/[^A-Z0-9]/g, "")
               .slice(0, 6);
             setRoomCodeInput(value);
           }}
@@ -94,7 +111,25 @@ export default function GamePage() {
         {joinMessage && (
           <p className="mt-2 text-sm text-yellow-300">{joinMessage}</p>
         )}
+
+        {/* List Players that are in the room */}
       </div>
+      {roomId && (
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold">Players in Room:</h2>
+          {players.length > 0 ? (
+            <ul className="list-disc ml-6 mt-2">
+              {players.map((playerId) => (
+                <li key={playerId} className="text-sm text-white">
+                  {playerId}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-300">Waiting for players...</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
