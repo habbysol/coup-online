@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import { useSocket } from "./hooks/useSocket";
 
 export default function GamePage() {
@@ -13,11 +13,29 @@ export default function GamePage() {
     console.log("✅ Connected to server:", socket.id);
 
     if (socket.id) {
-    setSocketId(socket.id);
-  }
+      setSocketId(socket.id);
+
+      socket.emit("create-room");
+
+      //Uncomment to expose socket globally for debugging (in DevTools console)
+      //socket.emit("join-room", { roomId: "grab from DevTools" });
+      //(window as any).socket = socket;
+    }
+
+    // TEMP: Test joining a hardcoded room from browser console
+    // Uncomment and replace ROOM_ID_HERE to test
+    //socket.emit("join-room", { roomId: "B07AU0" });
 
     socket.on("player-joined", (data) => {
       console.log("🎉 Player joined:", data);
+    });
+
+    socket.on("joined-room", (data) => {
+      console.log("✅ Joined room:", data.roomId);
+    });
+
+    socket.on("room-created", (data) => {
+      console.log("📦 Room created with ID:", data.roomId);
     });
 
     return () => {
